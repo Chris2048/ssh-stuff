@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+#use strict;
+#use warnings;
+
+my $cmd = "./ghost-ssh.rb export";    
+my @output = `$cmd`;    
+chomp @output;
+
+%servs = ();
+foreach my $line (@output)
+{
+	next if $line =~ /^\s*$/;
+	@sline = split(/,/, $line);
+	$name =  $sline[0] || $host;
+	$name =~ s/^\s+|\s+$//g;
+	$host =  $sline[1];
+	$host =~ s/^\s+|\s+$//g;
+	next if $host =~ /^\s*$/;
+	$user =  $sline[2] || "root";
+	$user =~ s/^\s+|\s+$//g;
+	$port =  $sline[3] || "22";
+	$port =~ s/^\s+|\s+$//g;
+	$servs{$name} = [ $host, $user, $port ];
+}
+
+use Term::ANSIColor qw(:constants);
+$Term::ANSIColor::AUTORESET = 1;
+
+$pt = `ps -Ao cmd=|grep -E '^ssh'`;
+@pt = split(/\n/, $pt);
+foreach $i (@pt) {
+	@i = split(/\s/, $i);
+	push(@connected, $i[1]) if $#i == 1;
+}
+
+@ref = ();
+for my $key ( keys %servs ) {
+  $user = $servs{$key}[1];
+  $host = $servs{$key}[0];
+  $port = $servs{$key}[2];
+  $fullline = "$user\@$host:$port";
+  push (@ref, $key);
+  if (grep {$_ eq $key} @connected) {
+    print BOLD BLUE ++$n, " $key  ($fullline) \n";
+  } else { print ++$n, " $key ($fullline) \n"; }
+}
+
+print "\nmake choice: ";
+$c = <>;
+system("clear");
+$user = $servs{$ref[$c-1]}[1];
+$host = $servs{$ref[$c-1]}[0];
+$port = $servs{$ref[$c-1]}[2];
+$fullline = "$user\@$host";
+exec "TERM='screen-256color' ssh $fullline";
